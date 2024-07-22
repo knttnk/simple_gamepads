@@ -57,18 +57,21 @@ class _MyAppState extends State<MyApp> {
           child: StreamBuilder<Null>(
             stream: Stream.periodic(const Duration(milliseconds: 30)),
             builder: (context, snapshot) {
-              return Column(
-                children: [
-                  Text('Now: ${DateTime.now()}\n'),
-                  FutureBuilder(
-                    future: getAvailableGamepadIds(),
-                    builder: (context, snapshot) => Text(
-                      'Number of gamepads: ${snapshot.data}\n',
+              return Center(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text('Now: ${DateTime.now()}\n'),
+                    FutureBuilder(
+                      future: getAvailableGamepadIds(),
+                      builder: (context, snapshot) => Text(
+                        'Number of gamepads: ${snapshot.data}\n',
+                      ),
                     ),
-                  ),
-                  for (int i = 0; i < 4; i++) Text('Axis $i: ${getGamepadAxis(0, i)}\n'),
-                  for (int i = 0; i < 16; i++) Text('Button $i: ${getGamepadButton(0, i)}\n'),
-                ],
+                    for (int i = 0; i < 4; i++) Text('Axis $i: ${getGamepadAxis(0, i)}\n'),
+                    for (int i = 0; i < 16; i++) Text('Button $i: ${getGamepadButton(0, i)}\n'),
+                  ],
+                ),
               );
             },
           ),

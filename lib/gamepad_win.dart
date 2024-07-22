@@ -1,89 +1,70 @@
 import 'dart:async';
 
-import 'package:gamepads/gamepads.dart';
-import 'package:flutter/foundation.dart';
+import 'package:win32_gamepad/win32_gamepad.dart' as win32_gamepad;
 
-import 'package:flutter/material.dart';
-
-class _MyWinGamepad {
-  static const Map<String, int> sticMap = {
-    'dwXpos': 0,
-    'dwYpos': 1,
-    'dwZpos': 2,
-    'dwRpos': 3,
-    'dwUpos': 4,
-    'dwVpos': 5,
-    'pov': 6,
-  };
-
-  final Map<int, double> analogNewestValues = {};
-  final Map<int, double> buttonNewestValues = {};
-
-  final String id;
-  StreamSubscription<GamepadEvent>? subscription;
-
-  _MyWinGamepad(this.id);
-
-  void initialize() {
-    subscription = Gamepads.eventsByGamepad(id).listen((e) {
-      switch (e.type) {
-        case KeyType.analog:
-          analogNewestValues[sticMap[e.key]!] = e.value / 32767.0 - 1.0;
-          break;
-        case KeyType.button:
-          final int keyIndex = int.parse(e.key.substring(7));
-          buttonNewestValues[keyIndex] = e.value;
-          break;
-        default:
-          break;
-      }
-    });
-    debugPrint("Gamepad '$id' initialized");
+List<win32_gamepad.Gamepad> getDartGamepadList() {
+  final List<win32_gamepad.Gamepad> ret = [];
+  int controller = 0;
+  while (true) {
+    final g = win32_gamepad.Gamepad(controller);
+    if (g.isConnected) {
+      ret.add(g);
+    } else {
+      break;
+    }
+    controller++;
   }
-
-  void dispose() {
-    subscription?.cancel();
-  }
+  return ret;
 }
-
-final Map<String, _MyWinGamepad> _gamepads = {};
 
 Future<List<String>> getAvailableGamepadIds() async {
-  final List<GamepadController> gamepads = await Gamepads.list();
-  debugPrint(gamepads.toString());
-  return gamepads
-      .map(
-        (controller) => controller.id,
-      )
-      .toList();
+  return getDartGamepadList().map((gamepad) => gamepad.controller.toString()).toList();
 }
 
-_MyWinGamepad _initializeGamepad(int gamepadNumber) {
-  final _MyWinGamepad gamepad = _MyWinGamepad("$gamepadNumber");
-  gamepad.initialize();
-  _gamepads["$gamepadNumber"] = gamepad;
-  return gamepad;
-}
+double? getGamepadAxis(int gamepadIndex, int axesIndex) {
+  final win32_gamepad.Gamepad g = win32_gamepad.Gamepad(gamepadIndex);
 
-_MyWinGamepad _initializedGamepad(int gamepadNumber) {
-  if (!_gamepads.containsKey("$gamepadNumber")) {
-    _initializeGamepad(gamepadNumber);
+  final int? rawValue = (switch (axesIndex) {
+    0 => g.state.leftThumbstickX,
+    1 => g.state.leftThumbstickY,
+    2 => g.state.rightThumbstickX,
+    3 => g.state.rightThumbstickY,
+    4 => g.state.leftTrigger,
+    5 => g.state.rightTrigger,
+    _ => null,
+  });
+  if (rawValue == null) {
+    return null;
   }
-  return _gamepads["$gamepadNumber"]!;
+  const int min = -32768;
+  const int max = 32767;
+  if (axesIndex < 4) {
+    return (rawValue - min) / (max - min) * 2 - 1;
+  } else {
+    return rawValue / max;
+  }
 }
 
-double? getGamepadAxis(int gamepadNumber, int index) {
-  final _MyWinGamepad gamepad = _initializedGamepad(gamepadNumber);
-  return gamepad.analogNewestValues[index];
+bool getGamepadButton(int gamepadIndex, int buttonIndex) {
+  final win32_gamepad.Gamepad g = win32_gamepad.Gamepad(gamepadIndex);
+
+  return switch (buttonIndex) {
+    0 => g.state.buttonA,
+    1 => g.state.buttonB,
+    2 => g.state.buttonX,
+    3 => g.state.buttonY,
+    4 => g.state.leftShoulder,
+    5 => g.state.rightShoulder,
+    6 => g.state.leftThumb,
+    7 => g.state.rightThumb,
+    8 => g.state.buttonBack,
+    9 => g.state.buttonStart,
+    10 => g.state.dpadUp,
+    11 => g.state.dpadDown,
+    12 => g.state.dpadLeft,
+    13 => g.state.dpadRight,
+    _ => false,
+  };
 }
 
-bool getGamepadButton(int gamepadNumber, int index) {
-  final _MyWinGamepad gamepad = _initializedGamepad(gamepadNumber);
-  return gamepad.buttonNewestValues[index] == 1;
-}
-
-void disposeGamepad(int gamepadNumber) {
-  final _MyWinGamepad? gamepad = _gamepads["$gamepadNumber"];
-  gamepad?.dispose();
-  _gamepads.remove("$gamepadNumber");
-}
+void disposeGamepad(String gamepadId) {}
